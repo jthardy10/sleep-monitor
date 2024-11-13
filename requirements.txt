@@ -1,3 +1,8 @@
+flask
+flask-cors
+PyJWT
+python-dotenv
+numpy
 pytest
 pytest-cov
 flake8
