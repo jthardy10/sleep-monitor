@@ -3,7 +3,7 @@ import time
 import json
 import threading
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 import numpy as np
@@ -115,7 +115,7 @@ def require_token(f):
 def get_token():
     token = jwt.encode(
         {
-            'exp': datetime.utcnow() + timedelta(hours=24)
+            'exp': datetime.now(UTC) + timedelta(hours=24)
         },
         SECRET_KEY,
         algorithm='HS256'
