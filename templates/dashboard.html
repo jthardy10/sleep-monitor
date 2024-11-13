@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Secure Sleep Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .chart-container { 
+            width: 80%; 
+            margin: 20px auto; 
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 10px;
+        }
+        h1 { text-align: center; color: #333; }
+        .metrics {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .error-message {
+            color: red;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Secure Sleep Monitor</h1>
+    
+    <div id="errorMessage" class="error-message"></div>
+    
+    <div class="metrics">
+        <div class="metric-card">
+            <h3>Sleep Quality</h3>
+            <div id="qualityScore">--</div>
+        </div>
+        <div class="metric-card">
+            <h3>Heart Rate</h3>
+            <div id="heartRate">--</div>
+        </div>
+        <div class="metric-card">
+            <h3>Temperature</h3>
+            <div id="temperature">--</div>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="qualityChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="sensorsChart"></canvas>
+    </div>
+
+    <script>
+        let token = null;
+        let qualityChart, sensorsChart;
+
+        async function init() {
+            try {
+                // Get authentication token
+                const response = await fetch('/api/token', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                token = data.token;
+                
+                // Initialize charts once we have the token
+                initCharts();
+                updateCharts();
+                setInterval(updateCharts, 5000);
+                
+                // Clear any error messages
+                document.getElementById('errorMessage').textContent = '';
+            } catch (error) {
+                document.getElementById('errorMessage').textContent = 'Authentication failed';
+            }
+        }
+
+        function initCharts() {
+            // Initialize charts (previous chart initialization code)
+            const qualityCtx = document.getElementById('qualityChart').getContext('2d');
+            const sensorsCtx = document.getElementById('sensorsChart').getContext('2d');
+
+            qualityChart = new Chart(qualityCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Sleep Quality',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1
+                        }
+                    }
+                }
+            });
+
+            sensorsChart = new Chart(sensorsCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Heart Rate',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1
+                    }, {
+                        label: 'Temperature',
+                        data: [],
+                        borderColor: 'rgb(54, 162, 235)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        }
+
+        async function updateCharts() {
+            try {
+                const response = await fetch(`/api/data?token=${token}`);
+                if (!response.ok) {
+                    throw new Error('Data fetch failed');
+                }
+                
+                const data = await response.json();
+                
+                if (data.sensor_data.length > 0 && data.analysis_data.length > 0) {
+                    const timestamps = data.sensor_data.map(d => d.timestamp);
+                    const quality = data.analysis_data.map(d => parseFloat(d.sleep_quality));
+                    const heartRate = data.sensor_data.map(d => parseFloat(d.heart_rate));
+                    const temperature = data.sensor_data.map(d => parseFloat(d.temperature));
+
+                    qualityChart.data.labels = timestamps;
+                    qualityChart.data.datasets[0].data = quality;
+                    qualityChart.update();
+
+                    sensorsChart.data.labels = timestamps;
+                    sensorsChart.data.datasets[0].data = heartRate;
+                    sensorsChart.data.datasets[1].data = temperature;
+                    sensorsChart.update();
+
+                    // Update current values
+                    document.getElementById('qualityScore').textContent = 
+                        (quality[quality.length-1] * 100).toFixed(1) + '%';
+                    document.getElementById('heartRate').textContent = 
+                        heartRate[heartRate.length-1].toFixed(1) + ' BPM';
+                    document.getElementById('temperature').textContent = 
+                        temperature[temperature.length-1].toFixed(1) + '°C';
+                }
+                
+                document.getElementById('errorMessage').textContent = '';
+            } catch (error) {
+                document.getElementById('errorMessage').textContent = 'Failed to update data';
+            }
+        }
+
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
