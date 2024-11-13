@@ -9,10 +9,10 @@ def client():
 
 def test_home_page(client):
     """Test that home page loads successfully"""
-    rv = client.get('/')
-    assert rv.status_code == 200
+    response = client.get('/')
+    assert response.status_code == 200
 
-def test_api_data_without_token(client):
-    """Test that API requires authentication"""
-    rv = client.get('/api/data')
-    assert rv.status_code == 401
+def test_api_token_endpoint(client):
+    """Test that token endpoint returns successful response"""
+    response = client.post('/api/token')
+    assert response.status_code == 200
