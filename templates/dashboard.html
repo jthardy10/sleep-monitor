@@ -1,127 +1,598 @@
 <!DOCTYPE html>
 <html>
 <head>
-   <title>Secure Sleep Monitor</title>
-   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-   <style>
-       body { font-family: Arial, sans-serif; margin: 20px; }
-       .chart-container { 
-           width: 80%; 
-           margin: 20px auto; 
-           padding: 20px;
-           background-color: #f5f5f5;
-           border-radius: 10px;
-       }
-       .metrics-grid {
-           display: grid;
-           grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-           gap: 20px;
-           margin: 20px;
-       }
-       .metric-card {
-           background: white;
-           padding: 20px;
-           border-radius: 8px;
-           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-           text-align: center;
-       }
-   </style>
+    <title>Sleep Monitor</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --optimal-color: #4caf50;
+            --warning-color: #ff9800;
+            --alert-color: #f44336;
+            --background-color: #f0f2f5;
+            --card-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            --border-radius: 10px;
+            --transition-speed: 0.3s;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--background-color);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+
+        .status {
+            padding: 12px 20px;
+            margin: 10px 0;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            text-align: center;
+            transition: var(--transition-speed);
+        }
+
+        .connected { 
+            background: #e8f5e9;
+            color: var(--optimal-color);
+        }
+
+        .disconnected { 
+            background: #ffebee;
+            color: var(--alert-color);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            height: 400px;
+            position: relative;
+            transition: var(--transition-speed);
+        }
+
+        .chart-container:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .chart-container h2 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+            font-size: 1.2em;
+        }
+
+        .chart-container.full-width {
+            grid-column: 1 / -1;
+            height: 300px;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .metric {
+            background: white;
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            text-align: center;
+            transition: var(--transition-speed);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            transition: var(--transition-speed);
+        }
+
+        .metric.optimal::before { background: var(--optimal-color); }
+        .metric.warning::before { background: var(--warning-color); }
+        .metric.alert::before { background: var(--alert-color); }
+
+        .metric:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .metric h3 {
+            margin: 0;
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric .value {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #2c3e50;
+            transition: var(--transition-speed);
+        }
+
+        .metric.alert .value { color: var(--alert-color); }
+        .metric.warning .value { color: var(--warning-color); }
+        .metric.optimal .value { color: var(--optimal-color); }
+
+        .metric .unit {
+            font-size: 0.6em;
+            color: #666;
+            margin-left: 2px;
+        }
+
+        .recommendations {
+            background: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            margin: 20px 0;
+            transition: var(--transition-speed);
+        }
+
+        .recommendations:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .recommendations h2 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+        }
+
+        .recommendations ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .recommendations li {
+            margin: 10px 0;
+            padding: 12px 15px;
+            border-radius: var(--border-radius);
+            background: #fff3e0;
+            color: #e65100;
+            display: flex;
+            align-items: center;
+            transition: var(--transition-speed);
+        }
+
+        .recommendations li:hover {
+            transform: translateX(5px);
+        }
+
+        .recommendations li::before {
+            content: '⚠️';
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .metric .value {
+                font-size: 24px;
+            }
+
+            .dashboard {
+                padding: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+        }
+    </style>
 </head>
 <body>
-   <h1>Secure Sleep Monitor</h1>
-   <div class="metrics-grid" id="metricsGrid"></div>
-   <div class="chart-container">
-       <canvas id="sleepChart"></canvas>
-   </div>
-   
-   <script>
-       let socket;
-       let chart;
+    <div class="dashboard">
+        <h1>Sleep Monitor Dashboard</h1>
+        <div id="status" class="status disconnected">Connecting...</div>
 
-       async function initializeConnection() {
-           try {
-               const response = await fetch('/api/token', {
-                   method: 'POST'
-               });
-               const { token } = await response.json();
-               
-               socket = io('/', {
-                   auth: { token },
-                   secure: true,
-                   rejectUnauthorized: false
-               });
+        <div class="metrics" id="metrics">
+            <div class="metric">
+                <h3>Initializing...</h3>
+                <div class="value">--</div>
+            </div>
+        </div>
 
-               socket.on('connect', () => {
-                   console.log('Connected securely to server');
-               });
+        <div class="charts-grid">
+            <div class="chart-container full-width">
+                <h2>Sleep Quality Trend</h2>
+                <canvas id="qualityChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Heart Rate & Temperature</h2>
+                <canvas id="vitalsChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Movement & Sound</h2>
+                <canvas id="environmentChart"></canvas>
+            </div>
+        </div>
 
-               socket.on('data_update', updateDashboard);
-               
-               initializeChart();
-           } catch (error) {
-               console.error('Connection error:', error);
-           }
-       }
+        <div class="recommendations">
+            <h2>Recommendations</h2>
+            <div id="recommendationsList">
+                <p>Waiting for analysis...</p>
+            </div>
+        </div>
+    </div>
 
-       function updateDashboard(data) {
-           document.getElementById('metricsGrid').innerHTML = `
-               <div class="metric-card">
-                   <h3>Sleep Quality</h3>
-                   <div>${(data.analysis.sleep_quality * 100).toFixed(1)}%</div>
-               </div>
-               <div class="metric-card">
-                   <h3>Heart Rate</h3>
-                   <div>${data.sensor_data.heart_rate} BPM</div>
-               </div>
-               <div class="metric-card">
-                   <h3>Temperature</h3>
-                   <div>${data.sensor_data.temperature}°C</div>
-               </div>
-           `;
+    <script>
+        // Initialize charts object
+        let charts = {};
+        const MAX_DATA_POINTS = 30;
 
-           if (chart) {
-               chart.data.labels.push(new Date(data.timestamp).toLocaleTimeString());
-               chart.data.datasets[0].data.push(data.analysis.sleep_quality);
-               
-               if (chart.data.labels.length > 50) {
-                   chart.data.labels.shift();
-                   chart.data.datasets[0].data.shift();
-               }
-               
-               chart.update();
-           }
-       }
+        // Define thresholds for metrics
+        const THRESHOLDS = {
+            sleep_quality: { warning: 0.6, alert: 0.4 },
+            heart_rate: { warning: 75, alert: 85 },
+            temperature: { warning: 23, alert: 24 },
+            movement: { warning: 0.4, alert: 0.6 },
+            sound_level: { warning: 40, alert: 50 }
+        };
 
-       function initializeChart() {
-           const ctx = document.getElementById('sleepChart').getContext('2d');
-           chart = new Chart(ctx, {
-               type: 'line',
-               data: {
-                   labels: [],
-                   datasets: [{
-                       label: 'Sleep Quality',
-                       data: [],
-                       borderColor: 'rgb(75, 192, 192)',
-                       tension: 0.1
-                   }]
-               },
-               options: {
-                   responsive: true,
-                   scales: {
-                       y: {
-                           beginAtZero: true,
-                           max: 1
-                       }
-                   },
-                   animation: {
-                       duration: 0
-                   }
-               }
-           });
-       }
+        const CHART_OPTIONS = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 750,
+                easing: 'easeInOutQuart'
+            },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 6
+                    }
+                }
+            },
+            elements: {
+                line: {
+                    tension: 0.3,
+                    borderWidth: 2
+                },
+                point: {
+                    radius: 2,
+                    hitRadius: 8,
+                    hoverRadius: 6
+                }
+            }
+        };
 
-       initializeConnection();
-   </script>
+        function initializeCharts() {
+            // Quality Chart
+            const qualityCtx = document.getElementById('qualityChart').getContext('2d');
+            charts.quality = new Chart(qualityCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Sleep Quality',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        fill: true
+                    }]
+                },
+                options: {
+                    ...CHART_OPTIONS,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            ticks: {
+                                callback: value => (value * 100).toFixed(0) + '%'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Vitals Chart
+            const vitalsCtx = document.getElementById('vitalsChart').getContext('2d');
+            charts.vitals = new Chart(vitalsCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Heart Rate',
+                            data: [],
+                            borderColor: 'rgb(255, 99, 132)',
+                            yAxisID: 'y-heart'
+                        },
+                        {
+                            label: 'Temperature',
+                            data: [],
+                            borderColor: 'rgb(255, 159, 64)',
+                            yAxisID: 'y-temp'
+                        }
+                    ]
+                },
+                options: {
+                    ...CHART_OPTIONS,
+                    scales: {
+                        'y-heart': {
+                            position: 'left',
+                            min: 40,
+                            max: 120,
+                            title: {
+                                display: true,
+                                text: 'Heart Rate (BPM)'
+                            }
+                        },
+                        'y-temp': {
+                            position: 'right',
+                            min: 15,
+                            max: 30,
+                            title: {
+                                display: true,
+                                text: 'Temperature (°C)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Environment Chart
+            const environmentCtx = document.getElementById('environmentChart').getContext('2d');
+            charts.environment = new Chart(environmentCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Movement',
+                            data: [],
+                            borderColor: 'rgb(153, 102, 255)',
+                            yAxisID: 'y-movement'
+                        },
+                        {
+                            label: 'Sound Level',
+                            data: [],
+                            borderColor: 'rgb(75, 192, 192)',
+                            yAxisID: 'y-sound'
+                        }
+                    ]
+                },
+                options: {
+                    ...CHART_OPTIONS,
+                    scales: {
+                        'y-movement': {
+                            position: 'left',
+                            min: 0,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: 'Movement'
+                            }
+                        },
+                        'y-sound': {
+                            position: 'right',
+                            min: 20,
+                            max: 80,
+                            title: {
+                                display: true,
+                                text: 'Sound Level (dB)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function getMetricStatus(type, value) {
+            const threshold = THRESHOLDS[type];
+            value = parseFloat(value);
+            
+            if (!threshold) return 'optimal';
+            
+            if (type === 'sleep_quality') {
+                if (value < threshold.alert) return 'alert';
+                if (value < threshold.warning) return 'warning';
+                return 'optimal';
+            } else {
+                if (value > threshold.alert) return 'alert';
+                if (value > threshold.warning) return 'warning';
+                return 'optimal';
+            }
+        }
+
+        function updateCharts(data) {
+            const timestamp = new Date(data.timestamp).toLocaleTimeString();
+
+            // Update Quality Chart
+            if (charts.quality.data.labels.length >= MAX_DATA_POINTS) {
+                charts.quality.data.labels.shift();
+                charts.quality.data.datasets[0].data.shift();
+            }
+            charts.quality.data.labels.push(timestamp);
+            charts.quality.data.datasets[0].data.push(parseFloat(data.analysis.sleep_quality));
+            charts.quality.update('none');
+
+            // Update Vitals Chart
+            if (charts.vitals.data.labels.length >= MAX_DATA_POINTS) {
+                charts.vitals.data.labels.shift();
+                charts.vitals.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+            charts.vitals.data.labels.push(timestamp);
+            charts.vitals.data.datasets[0].data.push(parseFloat(data.sensor_data.heart_rate));
+            charts.vitals.data.datasets[1].data.push(parseFloat(data.sensor_data.temperature));
+            charts.vitals.update('none');
+
+            // Update Environment Chart
+            if (charts.environment.data.labels.length >= MAX_DATA_POINTS) {
+                charts.environment.data.labels.shift();
+                charts.environment.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+            charts.environment.data.labels.push(timestamp);
+            charts.environment.data.datasets[0].data.push(parseFloat(data.sensor_data.movement));
+            charts.environment.data.datasets[1].data.push(parseFloat(data.sensor_data.sound_level));
+            charts.environment.update('none');
+        }
+
+        function updateMetrics(data) {
+            document.getElementById('metrics').innerHTML = `
+                <div class="metric ${getMetricStatus('sleep_quality', data.analysis.sleep_quality)}">
+                    <h3>Sleep Quality</h3>
+                    <div class="value">${(parseFloat(data.analysis.sleep_quality) * 100).toFixed(0)}<span class="unit">%</span></div>
+                </div>
+                <div class="metric ${getMetricStatus('heart_rate', data.sensor_data.heart_rate)}">
+                    <h3>Heart Rate</h3>
+                    <div class="value">${parseFloat(data.sensor_data.heart_rate).toFixed(0)}<span class="unit">BPM</span></div>
+                </div>
+                <div class="metric ${getMetricStatus('temperature', data.sensor_data.temperature)}">
+                    <h3>Temperature</h3>
+                    <div class="value">${parseFloat(data.sensor_data.temperature).toFixed(1)}<span class="unit">°C</span></div>
+                </div>
+                <div class="metric ${getMetricStatus('movement', data.sensor_data.movement)}">
+                    <h3>Movement</h3>
+                    <div class="value">${parseFloat(data.sensor_data.movement).toFixed(2)}</div>
+                </div>
+                <div class="metric ${getMetricStatus('sound_level', data.sensor_data.sound_level)}">
+                    <h3>Sound Level</h3>
+                    <div class="value">${parseFloat(data.sensor_data.sound_level).toFixed(0)}<span class="unit">dB</span></div>
+                </div>
+            `;
+        }
+
+        function updateRecommendations(data) {
+            if (!data.analysis.recommendations || data.analysis.recommendations.length === 0) {
+                document.getElementById('recommendationsList').innerHTML = 
+                    '<p style="color: var(--optimal-color);">All measurements are within optimal ranges.</p>';
+                return;
+            }
+
+            const recommendationsHtml = data.analysis.recommendations
+                .map(rec => `<li>${rec}</li>`)
+                .join('');
+            
+            document.getElementById('recommendationsList').innerHTML = `
+                <ul>${recommendationsHtml}</ul>
+            `;
+        }
+
+        let lastUpdateTime = Date.now();
+        let connectionAttempts = 0;
+        const MAX_RECONNECTION_ATTEMPTS = 5;
+
+        const socket = io({
+            transports: ['websocket'],
+            reconnection: true,
+            reconnectionAttempts: MAX_RECONNECTION_ATTEMPTS,
+            reconnectionDelay: 1000,
+            timeout: 10000
+        });
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            document.getElementById('status').className = 'status connected';
+            document.getElementById('status').textContent = 'Connected';
+            connectionAttempts = 0;
+            lastUpdateTime = Date.now();
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').textContent = 'Disconnected - Attempting to reconnect...';
+        });
+
+        socket.on('data_update', (data) => {
+            lastUpdateTime = Date.now();
+            updateMetrics(data);
+            updateCharts(data);
+            updateRecommendations(data);
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            connectionAttempts++;
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').textContent = 
+                connectionAttempts >= MAX_RECONNECTION_ATTEMPTS
+                    ? 'Connection failed - Please refresh the page'
+                    : `Connection error (Attempt ${connectionAttempts}/${MAX_RECONNECTION_ATTEMPTS})`;
+        });
+
+        // Monitor connection health
+        setInterval(() => {
+            const timeSinceLastUpdate = Date.now() - lastUpdateTime;
+            if (timeSinceLastUpdate > 10000 && socket.connected) {  // 10 seconds
+                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').textContent = 'Connection timeout - No recent updates';
+                socket.disconnect().connect();  // Force reconnection
+            }
+        }, 5000);
+
+        // Initialize everything when the page loads
+        window.onload = () => {
+            try {
+                console.log('Initializing dashboard...');
+                initializeCharts();
+                console.log('Charts initialized');
+            } catch (error) {
+                console.error('Initialization error:', error);
+                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').textContent = 'Dashboard initialization failed';
+            }
+        };
+    </script>
 </body>
 </html>
