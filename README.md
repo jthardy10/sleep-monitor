@@ -1,51 +1,54 @@
 # Sleep Monitor System
 
-A secure IoT-based sleep quality monitoring system with real-time visualization.
+Real-time sleep monitoring system with ML-based analysis and pattern detection.
 
 ## Features
-- Real-time sleep quality monitoring
+- Real-time sleep quality monitoring 
+- Machine learning-based pattern analysis
+- Interactive dashboard with live graphs
+- Environmental factor analysis
+- Smart recommendations
 - Secure data transmission
-- Interactive dashboard with Chart.js
-- Sleep pattern analysis
-- JWT Authentication
 
-## Installation
-
+## Quick Start
 ```bash
 # Clone the repository
 git clone https://github.com/jthardy10/sleep-monitor.git
-cd sleep-monitor
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your configurations
-
-# Run the application
+# Start the application
 python main.py
 ```
 
-## Development
+Access the dashboard at `http://localhost:8000`
 
-- `main` branch: Production-ready code
-- `development` branch: Active development
+## System Structure
+```
+sleep-monitor/
+├── main.py              # Main application server
+├── sleep_ml.py         # Machine learning components
+├── secure_transmission.py  # Secure data handling
+├── templates/          # Frontend templates
+└── tests/             # Test suite
+```
 
-## API Endpoints
+## Technology Stack
+- Flask (Backend server)
+- Socket.IO (Real-time communication)
+- Chart.js (Data visualisation)
+- scikit-learn (Machine learning)
+- AWS DynamoDB (Data storage)
 
-- `/`: Dashboard interface
-- `/api/token`: Authentication endpoint
-- `/api/data`: Sleep monitoring data endpoint
+## Documentation
+- [Setup Guide](docs/setup/README.md)
+- [API Documentation](docs/api/README.md)
+- [Features Guide](docs/features/README.md)
+- [Testing Guide](docs/testing/README.md)
 
 ## Contributing
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on our code of conduct and the process for submitting pull requests.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## Licence
+This project is licensed under the MIT Licence - see the [LICENCE](LICENCE) file for details.
