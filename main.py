@@ -6,6 +6,9 @@ from datetime import datetime
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO, emit
 import logging
+import eventlet
+
+eventlet.monkey_patch()
 
 # Configure logging
 logging.basicConfig(
@@ -15,7 +18,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True, async_mode='threading')
+socketio = SocketIO(app, 
+                   cors_allowed_origins="*", 
+                   logger=True, 
+                   engineio_logger=True,
+                   async_mode='eventlet')
 
 connected_clients = set()
 
@@ -69,7 +76,6 @@ def generate_data():
                 }
             }
             
-            # Add recommendations based on thresholds
             if temperature > 23:
                 data['analysis']['recommendations'].append("Temperature is high")
             if sound_level > 40:
@@ -81,19 +87,18 @@ def generate_data():
                 logger.info(f"Broadcasting to {len(connected_clients)} clients")
                 socketio.emit('data_update', data)
             
-            time.sleep(5)
+            eventlet.sleep(5)
             
         except Exception as e:
             logger.error(f"Error generating data: {str(e)}")
-            time.sleep(5)
+            eventlet.sleep(5)
 
 if __name__ == '__main__':
     try:
         logger.info("Starting application...")
         
         # Start data generation in background thread
-        data_thread = threading.Thread(target=generate_data, daemon=True)
-        data_thread.start()
+        eventlet.spawn(generate_data)
         logger.info("Data generation thread started")
         
         # Start Flask application
@@ -102,7 +107,7 @@ if __name__ == '__main__':
             debug=True,
             port=8000,
             host='0.0.0.0',
-            use_reloader=False  # Prevent duplicate data generation
+            use_reloader=False
         )
     except Exception as e:
         logger.error(f"Startup error: {str(e)}")

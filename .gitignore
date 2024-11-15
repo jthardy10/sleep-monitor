@@ -1,17 +1,20 @@
-# Environment variables
-.env
-.env.*
-
 # Python
 __pycache__/
 *.py[cod]
 venv/
-*.so
+.env
 
-# OS specific
-.DS_Store
-Thumbs.db
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
 
-# IDE
-.idea/
+# IDEs
 .vscode/
+.idea/
+
+# System
+.DS_Store
